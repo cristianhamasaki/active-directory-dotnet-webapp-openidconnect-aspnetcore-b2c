@@ -6,16 +6,11 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Http.Authentication;
 using Microsoft.AspNetCore.Mvc;
-using System.Security.Claims;
-
-// For more information on enabling MVC for empty projects, visit http://go.microsoft.com/fwlink/?LinkID=397860
 
 namespace WebApp_OpenIDConnect_DotNet.Controllers
 {
     public class AccountController : Controller
     {
-        // GET: /Account/Login
-        [HttpGet]
         public async Task SignUp()
         {
             if (HttpContext.User == null || !HttpContext.User.Identity.IsAuthenticated)
@@ -25,8 +20,6 @@ namespace WebApp_OpenIDConnect_DotNet.Controllers
             }
         }
 
-        // GET: /Account/Login
-        [HttpGet]
         public async Task SignIn()
         {
             if (HttpContext.User == null || !HttpContext.User.Identity.IsAuthenticated)
@@ -36,9 +29,7 @@ namespace WebApp_OpenIDConnect_DotNet.Controllers
             }
         }
 
-        // GET: /Account/LogOff
-        [HttpGet]
-        public async Task LogOff()
+        public async Task SignOut()
         {
             if (HttpContext.User != null && HttpContext.User.Identity.IsAuthenticated)
             {
@@ -52,6 +43,23 @@ namespace WebApp_OpenIDConnect_DotNet.Controllers
                 await HttpContext.Authentication.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
                 await HttpContext.Authentication.SignOutAsync(scheme.ToLower(), new AuthenticationProperties { RedirectUri = "/" });
             }
+
+            /*
+            var callbackUrl = Url.Action("SignedOut", "Account", values: null, protocol: Request.Scheme);
+            return SignOut(new AuthenticationProperties { RedirectUri = callbackUrl },
+                CookieAuthenticationDefaults.AuthenticationScheme, OpenIdConnectDefaults.AuthenticationScheme);
+            */
+        }
+
+        public IActionResult SignedOut()
+        {
+            if (HttpContext.User.Identity.IsAuthenticated)
+            {
+                // Redirect to home page if the user is authenticated.
+                return RedirectToAction(nameof(HomeController.Index), "Home");
+            }
+
+            return View();
         }
     }
 }

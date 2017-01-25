@@ -24,14 +24,13 @@ namespace WebApp_OpenIDConnect_DotNet.Controllers
         public IActionResult Contact()
         {
             ViewData["Message"] = "Your contact page.";
-
             return View();
         }
 
         public IActionResult Error(string message)
         {
             ViewBag.Message = message;
-            return View("~/Views/Shared/Error.cshtml");
+            return View();
         }
     }
 }

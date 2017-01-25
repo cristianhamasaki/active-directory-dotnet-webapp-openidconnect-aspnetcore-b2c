@@ -49,15 +49,15 @@ Now you need to create your own appliation in your B2C tenant, so that your app 
 
 ### Step 6: Configure the sample to use your B2C tenant
 
-Now you can replace the app's default configuration with your own.  Open the `config.json` file and replace the following values with the ones you created in the previous steps.  You can leave the `AadInstance` and `PostLogoutRedirectUri` values unchanged.
+Now you can replace the app's default configuration with your own.  Open the `appsettings.json` file and replace the following values with the ones you created in the previous steps.  You can leave the `AadInstance` and `PostLogoutRedirectUri` values unchanged.
 
 ```json
 {
     "AzureAd": {
+        "AADInstance": "https://login.microsoftonline.com/{0}/v2.0/.well-known/openid-configuration?p={1}",
+        "PostLogoutRedirectUri": "/SignedOut",
         "ClientId": "90c0fe63-bcf2-44d5-8fb7-b8bbc0b29dc6",
-        "Tenant": "fabrikamb2c.onmicrosoft.com",
-        "AadInstance": "https://login.microsoftonline.com/{0}/v2.0/.well-known/openid-configuration?p={1}", // This is the public instance of Azure AD
-        "PostLogoutRedirectUri": "https://localhost:44316/",
+        "TenantId": "fabrikamb2c.onmicrosoft.com",
 
         "SignUpPolicyId": "B2C_1_sign_up",
         "SignInPolicyId": "B2C_1_sign_in",

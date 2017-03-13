@@ -18,13 +18,16 @@ namespace WebApp_OpenIDConnect_DotNet
 {
     public class Startup
     {
-        public static string SignUpPolicyId;
-        public static string SignInPolicyId;
-        public static string ProfilePolicyId;
+        public static string SignUpSignInPolicyId;
+        public static string EditProfilePolicyId;
+        public static string ResetPasswordPolicyId;
         public static string ClientId;
         public static string PostLogoutRedirectUri;
         public static string AadInstance;
         public static string Tenant;
+        public static string ClientSecret;
+        public static string ApiUri;
+        public static string Scopes;
 
         public Startup(IHostingEnvironment env)
         {
@@ -73,7 +76,6 @@ namespace WebApp_OpenIDConnect_DotNet
             app.UseStaticFiles();
 
             app.UseCookieAuthentication();
-
             // App config settings
             ClientId = Configuration["Authentication:AzureAD:ClientId"];
             AadInstance = Configuration["Authentication:AzureAd:AADInstance"];
@@ -81,12 +83,45 @@ namespace WebApp_OpenIDConnect_DotNet
             PostLogoutRedirectUri = Configuration["Authentication:AzureAD:PostLogoutRedirectUri"];
 
             // B2C policy identifiers
-            SignUpPolicyId = Configuration["Authentication:AzureAD:SignUpPolicyId"];
-            SignInPolicyId = Configuration["Authentication:AzureAD:SignInPolicyId"];
+            SignUpSignInPolicyId = Configuration["Authentication:AzureAd:SignUpSignInPolicyId"].ToLower();
+            EditProfilePolicyId = Configuration["Authentication:AzureAd:EditProfilePolicyId"].ToLower();
+            ResetPasswordPolicyId = Configuration["Authentication:AzureAd:ResetPasswordPolicyId"].ToLower();
+
+            // Web API
+            ClientSecret = Configuration["Authentication:AzureAd:ClientSecret"];
+            ApiUri = Configuration["Authentication:AzureAd:ApiUri"];
+            Scopes = Configuration["Authentication:AzureAd:Scopes"];
 
             // Configure the OWIN pipeline to use OpenID Connect auth.
-            app.UseOpenIdConnectAuthentication(CreateOptionsFromPolicy(SignUpPolicyId));
-            app.UseOpenIdConnectAuthentication(CreateOptionsFromPolicy(SignInPolicyId));
+            var openIdConnectAuthenticationOptions = new OpenIdConnectOptions
+            {
+                // For each policy, give OWIN the policy-specific metadata address, and
+                // set the authentication type to the id of the policy
+                MetadataAddress = string.Format(AadInstance, Tenant, SignUpSignInPolicyId),
+
+                // These are standard OpenID Connect parameters, with values pulled from config.json
+                ClientId = ClientId,
+                ClientSecret = ClientSecret,
+                PostLogoutRedirectUri = PostLogoutRedirectUri,
+                Events = new OpenIdConnectEvents
+                {
+                    OnRemoteFailure = RemoteFailure,
+                    OnRedirectToIdentityProvider = RedirectToIdentityProvider,
+                    OnTokenResponseReceived = TokenReceived
+                },
+                ResponseType = OpenIdConnectResponseType.CodeIdToken,
+                // This piece is optional - it is used for displaying the user's name in the navigation bar.
+                TokenValidationParameters = new TokenValidationParameters
+                {
+                    NameClaimType = "name",
+                }
+            };
+            openIdConnectAuthenticationOptions.Scope.Add(OpenIdConnectScope.OpenId);
+            foreach(var scope in Scopes.Split(';')) {
+                openIdConnectAuthenticationOptions.Scope.Add("https://" + Tenant + "/" + ApiUri + "/" + scope);
+            }
+
+            app.UseOpenIdConnectAuthentication(openIdConnectAuthenticationOptions);
 
             app.UseMvc(routes =>
             {
@@ -96,32 +131,22 @@ namespace WebApp_OpenIDConnect_DotNet
             });
         }
 
-        private OpenIdConnectOptions CreateOptionsFromPolicy(string policy)
+        private Task TokenReceived(TokenResponseReceivedContext context)
         {
-            policy = policy.ToLower();
-            return new OpenIdConnectOptions
+            Console.WriteLine(context.TokenEndpointResponse.AccessToken);
+            return Task.FromResult(0);
+        }
+
+        private Task RedirectToIdentityProvider(RedirectContext context)
+        {
+            var policy = context.HttpContext.Items["policy"]?.ToString() ?? string.Empty;
+            if (!string.IsNullOrEmpty(policy))
             {
-                // For each policy, give OWIN the policy-specific metadata address, and
-                // set the authentication type to the id of the policy
-                MetadataAddress = string.Format(AadInstance, Tenant, policy),
-                AuthenticationScheme = policy,
-                CallbackPath = new PathString(string.Format("/{0}", policy)),
-
-                // These are standard OpenID Connect parameters, with values pulled from config.json
-                ClientId = ClientId,
-                PostLogoutRedirectUri = new PathString(string.Format("/{0}", PostLogoutRedirectUri)),
-                Events = new OpenIdConnectEvents
-                {
-                    OnRemoteFailure = RemoteFailure,
-                },
-                ResponseType = OpenIdConnectResponseType.IdToken,
-
-                // This piece is optional - it is used for displaying the user's name in the navigation bar.
-                TokenValidationParameters = new TokenValidationParameters
-                {
-                    NameClaimType = "name",
-                },
-            };
+                context.ProtocolMessage.IssuerAddress = context.ProtocolMessage.IssuerAddress.Replace(SignUpSignInPolicyId, policy);
+                context.ProtocolMessage.Scope = OpenIdConnectScope.OpenId;
+                context.ProtocolMessage.ResponseType = OpenIdConnectResponseType.IdToken;
+            }
+            return Task.FromResult(0);
         }
 
         // Used for avoiding yellow-screen-of-death
